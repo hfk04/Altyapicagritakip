@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arıza Çağrı Sistemi</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: #252a3a;
+    --accent: #1a73e8;
+    --accent2: #22d3ee;
+    --green: #10b981;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #475569;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600; font-size: 14px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; color: var(--text2);
+  }
+  .badge span { color: var(--accent2); font-weight: 600; }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px 28px;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .panel-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .panel-body { padding: 16px; }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: var(--bg);
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(26, 115, 232, 0.05);
+  }
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer;
+  }
+  .upload-icon {
+    width: 44px; height: 44px;
+    background: var(--surface2);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 18px; border: 1px solid var(--border);
+  }
+  .upload-title { font-weight: 500; margin-bottom: 4px; font-size: 13px; }
+  .upload-sub { color: var(--text3); font-size: 11px; }
+
+  .preview-wrap {
+    position: relative; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border); margin-top: 12px; display: none;
+  }
+  .preview-wrap img {
+    width: 100%; display: block;
+    max-height: 240px; object-fit: contain; background: #0a0c10;
+  }
+  .preview-remove {
+    position: absolute; top: 7px; right: 7px;
+    background: rgba(0,0,0,0.75); border: 1px solid var(--border);
+    color: var(--text2); border-radius: 6px;
+    padding: 3px 8px; cursor: pointer; font-size: 11px; transition: all 0.2s;
+  }
+  .preview-remove:hover { color: var(--red); border-color: var(--red); }
+
+  .status-box {
+    margin-top: 12px; padding: 10px 12px;
+    border-radius: 8px; font-size: 11px; display: none;
+    align-items: center; gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .status-box.loading  { display:flex; background:rgba(26,115,232,0.08); border:1px solid rgba(26,115,232,0.2); color:var(--accent); }
+  .status-box.success  { display:flex; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.2); color:var(--green); }
+  .status-box.error    { display:flex; background:rgba(239,68,68,0.08);  border:1px solid rgba(239,68,68,0.2);  color:var(--red); }
+
+  .spinner {
+    width: 13px; height: 13px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .form-grid { display: grid; gap: 9px; margin-top: 12px; }
+  .form-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+
+  .form-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text3);
+  }
+  .form-label .req { color: var(--accent); margin-left: 2px; }
+
+  .form-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px; padding: 8px 10px;
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px; outline: none; transition: border-color 0.2s; width: 100%;
+  }
+  .form-input:focus  { border-color: var(--accent); }
+  .form-input.filled { border-color: rgba(34,211,238,0.4); color: var(--accent2); }
+  .form-input::placeholder { color: var(--text3); }
+
+  .btn {
+    padding: 9px 16px; border-radius: 8px; border: none;
+    cursor: pointer; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary  { background: var(--accent); color: #fff; }
+  .btn-primary:hover   { background: #1557b0; }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-outline  { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-outline:hover   { border-color: var(--accent2); color: var(--accent2); }
+  .btn-success  { background: var(--green); color: #fff; }
+  .btn-success:hover   { background: #059669; }
+  .btn-danger   { background: transparent; color: var(--red); border: 1px solid rgba(239,68,68,0.3); font-size: 11px; padding: 6px 11px; }
+  .btn-danger:hover    { background: rgba(239,68,68,0.1); }
+
+  .actions-row { display: flex; gap: 8px; margin-top: 12px; }
+  .actions-row .btn { flex: 1; justify-content: center; }
+
+  /* TABLE */
+  .table-toolbar {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .toolbar-right { display: flex; gap: 7px; }
+
+  .table-scroll { overflow-x: auto; max-height: calc(100vh - 180px); overflow-y: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead { position: sticky; top: 0; background: var(--surface2); z-index: 10; }
+  th {
+    padding: 9px 12px; text-align: left;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text3); border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid rgba(37,42,58,0.5); transition: background 0.1s; }
+  tbody tr:hover { background: rgba(26,115,232,0.04); }
+  td { padding: 9px 12px; color: var(--text2); white-space: nowrap; }
+  td:nth-child(2) { color: var(--text); font-weight: 500; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+
+  .td-idx  { color: var(--text3) !important; font-family: 'IBM Plex Mono', monospace; font-size: 10px; width: 32px; text-align: center; font-weight: 400 !important; }
+  .td-code { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--accent2) !important; }
+  .td-date { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+  .td-del  { text-align: center; padding: 5px; }
+
+  .del-btn {
+    background: none; border: none; color: var(--text3);
+    cursor: pointer; padding: 4px 7px; border-radius: 5px;
+    font-size: 13px; transition: all 0.15s;
+  }
+  .del-btn:hover { color: var(--red); background: rgba(239,68,68,0.1); }
+  .del-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .empty-state { padding: 50px 20px; text-align: center; color: var(--text3); }
+  .empty-icon  { font-size: 32px; margin-bottom: 10px; }
+  .empty-text  { font-size: 12px; line-height: 1.6; }
+
+  #toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 15px; font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+    opacity: 0; transform: translateY(8px);
+    transition: all 0.25s; pointer-events: none; z-index: 999;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.green { border-color: rgba(16,185,129,0.35); color: var(--green); }
+  #toast.red   { border-color: rgba(239,68,68,0.35);  color: var(--red); }
+  #toast.blue  { border-color: rgba(26,115,232,0.35); color: var(--accent); }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 860px) {
+    .container { grid-template-columns: 1fr; padding: 14px; }
+    header { padding: 0 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    Arıza Çağrı Sistemi
+  </div>
+  <div class="badge">Toplam: <span id="totalCount">0</span> kayıt</div>
+</header>
+
+<div class="container">
+
+  <!-- SOL PANEL -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📷 SS Yükle & Analiz Et</span>
+      </div>
+      <div class="panel-body">
+
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept="image/*">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-title">Ekran görüntüsü seç</div>
+          <div class="upload-sub">PNG, JPG · Tıkla veya sürükle bırak</div>
+        </div>
+
+        <div class="preview-wrap" id="previewWrap">
+          <img id="previewImg" src="" alt="">
+          <button class="preview-remove" onclick="clearImage()">✕ Kaldır</button>
+        </div>
+
+        <div class="status-box" id="statusBox">
+          <div class="spinner" id="spinner"></div>
+          <span id="statusText">Analiz ediliyor...</span>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Okul Adı <span class="req">*</span></label>
+            <input class="form-input" id="f_okul" placeholder="—" autocomplete="off">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Çağrı Kodu</label>
+              <input class="form-input" id="f_cagri" placeholder="—" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kurum Kodu</label>
+              <input class="form-input" id="f_kurum" placeholder="—" autocomplete="off">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">İl</label>
+              <input class="form-input" id="f_il" placeholder="—" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label class="form-label">İlçe</label>
+              <input class="form-input" id="f_ilce" placeholder="—" autocomplete="off">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Tarih</label>
+              <input class="form-input" id="f_tarih" placeholder="—" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Personel</label>
+              <input class="form-input" id="f_personel" placeholder="—" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <div class="actions-row">
+          <button class="btn btn-outline" onclick="clearForm()">Temizle</button>
+          <button class="btn btn-primary" id="addBtn" onclick="addRecord()" disabled>
+            + Listeye Ekle
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SAĞ PANEL -->
+  <div class="panel">
+    <div class="table-toolbar">
+      <span class="panel-title">📋 Kayıt Listesi</span>
+      <div class="toolbar-right">
+        <button class="btn btn-danger" onclick="confirmClearAll()">🗑 Tümünü Sil</button>
+      </div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Okul Adı</th>
+            <th>Çağrı Kodu</th>
+            <th>Kurum Kodu</th>
+            <th>İl</th>
+            <th>İlçe</th>
+            <th>Tarih</th>
+            <th>Personel</th>
+            <th>Eklenme</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="10">
+            <div class="empty-state">
+              <div class="empty-icon">⏳</div>
+              <div class="empty-text">Kayıtlar yükleniyor...</div>
+            </div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"><span id="toastMsg"></span></div>
+
+<script>
+// ─── UPLOAD ──────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('image/')) handleFile(f);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    document.getElementById('previewImg').src = dataUrl;
+    document.getElementById('previewWrap').style.display = 'block';
+
+    // base64 ve mimeType'ı ayır
+    const base64 = dataUrl.split(',')[1];
+    const mime   = dataUrl.split(';')[0].split(':')[1];
+    analyzeImage(base64, mime);
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('previewImg').src = '';
+  document.getElementById('fileInput').value = '';
+  setStatus('hidden');
+  clearFormFields();
+  document.getElementById('addBtn').disabled = true;
+}
+
+// ─── GÖRSEL ANALİZ (Backend'e gönder) ────────────────────────────────────
+function analyzeImage(base64, mime) {
+  setStatus('loading', 'Gemini analiz ediyor...');
+  clearFormFields();
+
+  google.script.run
+    .withSuccessHandler(result => {
+      fillForm(result);
+      setStatus('success', 'Analiz tamamlandı — bilgileri kontrol edin');
+      document.getElementById('addBtn').disabled = false;
+      toast('✓ Bilgiler dolduruldu', 'green');
+    })
+    .withFailureHandler(err => {
+      setStatus('error', 'Hata: ' + err.message);
+      document.getElementById('addBtn').disabled = false;
+      toast('⚠ Analiz başarısız, manuel girin', 'red');
+    })
+    .analyzeImage(base64, mime);
+}
+
+// ─── FORM ─────────────────────────────────────────────────────────────────
+function fillForm(d) {
+  const map = {
+    f_okul: d.okul_adi, f_cagri: d.cagri_kodu,
+    f_kurum: d.kurum_kodu, f_il: d.il,
+    f_ilce: d.ilce, f_tarih: d.tarih, f_personel: d.personel
+  };
+  for (const [id, val] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    el.value = val || '';
+    el.classList.toggle('filled', !!val);
+  }
+}
+
+function clearFormFields() {
+  ['f_okul','f_cagri','f_kurum','f_il','f_ilce','f_tarih','f_personel'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = ''; el.classList.remove('filled');
+  });
+}
+
+function clearForm() {
+  clearFormFields();
+  document.getElementById('addBtn').disabled = true;
+  setStatus('hidden');
+}
+
+// ─── KAYIT EKLE ───────────────────────────────────────────────────────────
+function addRecord() {
+  const okul = document.getElementById('f_okul').value.trim();
+  if (!okul) { toast('Okul adı zorunlu', 'red'); return; }
+
+  const record = {
+    okul:     okul,
+    cagri:    document.getElementById('f_cagri').value.trim(),
+    kurum:    document.getElementById('f_kurum').value.trim(),
+    il:       document.getElementById('f_il').value.trim(),
+    ilce:     document.getElementById('f_ilce').value.trim(),
+    tarih:    document.getElementById('f_tarih').value.trim(),
+    personel: document.getElementById('f_personel').value.trim()
+  };
+
+  document.getElementById('addBtn').disabled = true;
+  toast('Kaydediliyor...', 'blue');
+
+  google.script.run
+    .withSuccessHandler(() => {
+      toast('✓ E-Tabloya kaydedildi', 'green');
+      clearForm();
+      clearImage();
+      loadRecords();
+    })
+    .withFailureHandler(err => {
+      toast('⚠ Kayıt hatası: ' + err.message, 'red');
+      document.getElementById('addBtn').disabled = false;
+    })
+    .addRecord(record);
+}
+
+// ─── KAYITLARI YÜKLE ──────────────────────────────────────────────────────
+function loadRecords() {
+  google.script.run
+    .withSuccessHandler(renderTable)
+    .withFailureHandler(err => {
+      console.error(err);
+      renderTable([]);
+    })
+    .getRecords();
+}
+
+// ─── TABLO RENDER ─────────────────────────────────────────────────────────
+function renderTable(records) {
+  records = records || [];
+  document.getElementById('totalCount').textContent = records.length;
+  const tbody = document.getElementById('tableBody');
+
+  if (!records.length) {
+    tbody.innerHTML = `<tr><td colspan="10">
+      <div class="empty-state">
+        <div class="empty-icon">📂</div>
+        <div class="empty-text">Henüz kayıt yok.<br>SS yükleyerek başlayın.</div>
+      </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = records.map((r, i) => `
+    <tr>
+      <td class="td-idx">${i + 1}</td>
+      <td>${esc(r.okul)}</td>
+      <td class="td-code">${esc(r.cagri) || '—'}</td>
+      <td class="td-code">${esc(r.kurum) || '—'}</td>
+      <td>${esc(r.il) || '—'}</td>
+      <td>${esc(r.ilce) || '—'}</td>
+      <td class="td-date">${esc(r.tarih) || '—'}</td>
+      <td>${esc(r.personel) || '—'}</td>
+      <td class="td-date" style="font-size:10px;color:var(--text3)">${esc(String(r.eklenme)) || '—'}</td>
+      <td class="td-del">
+        <button class="del-btn" onclick="deleteRecord(${i})" title="Sil">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
+// ─── SİLME ────────────────────────────────────────────────────────────────
+function deleteRecord(rowIndex) {
+  if (!confirm('Bu kayıt silinsin mi?')) return;
+  const btns = document.querySelectorAll('.del-btn');
+  btns.forEach(b => b.disabled = true);
+
+  google.script.run
+    .withSuccessHandler(() => { toast('Kayıt silindi', 'blue'); loadRecords(); })
+    .withFailureHandler(err => { toast('⚠ Silme hatası', 'red'); btns.forEach(b => b.disabled = false); })
+    .deleteRecord(rowIndex);
+}
+
+function confirmClearAll() {
+  toast('Tüm kayıtları silmek için E-Tabloyu açın', 'blue');
+}
+
+// ─── YARDIMCI ─────────────────────────────────────────────────────────────
+function setStatus(type, msg) {
+  const box = document.getElementById('statusBox');
+  box.className = 'status-box';
+  if (type === 'hidden') { box.style.display = 'none'; return; }
+  box.style.display = '';
+  box.classList.add(type);
+  document.getElementById('statusText').textContent = msg;
+  document.getElementById('spinner').style.display = type === 'loading' ? '' : 'none';
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+let toastTimer;
+function toast(msg, type = 'blue') {
+  const el = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3200);
+}
+
+['f_okul','f_cagri','f_kurum','f_il','f_ilce','f_tarih','f_personel'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById('addBtn').disabled = false;
+  });
+});
+
+// ─── BAŞLANGIDA KAYITLARI YÜKle ───────────────────────────────────────────
+loadRecords();
+</script>
+</body>
+</html>
